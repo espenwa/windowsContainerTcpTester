@@ -29,29 +29,77 @@ function CheckForExitKey()
     }
     return $false
 }
-$port = 1713
+
+$port = 1710
 
 $endpoint = new-object System.Net.IPEndPoint ([system.net.ipaddress]::any, $port)
 $listener = new-object System.Net.Sockets.TcpListener $endpoint
 $listener.start()
-$client = $listener.AcceptTcpClient()
-Write-Host "Got connection from  ${$client.Client.RemoteEndPoint.AddressFamily} "
-$stream = $client.GetStream()
-$stream.ReadTimeout = 5000
 
-while ($client.Connected -and -not (CheckForExitKey))
+# Wait for pending connection
+while (-not $listener.Pending())
 {
-    $readData = ReadData($stream)
-    if ($readData -eq "ping")
+  if (CheckForExitKey)
+  {
+      Write-Host "Q pressed - exiting"
+      $listener.Stop()
+      exit
+  }
+  Start-Sleep -Seconds 1
+}
+
+$client = $listener.AcceptTcpClient()
+$stream = $client.GetStream()
+$stream.ReadTimeout = 1000
+$pongBytes = [text.Encoding]::UTF8.GetBytes("pong");
+Write-Host "Got connection from $($client.Client.RemoteEndPoint.ToString())"
+
+
+# Timing setup
+$firstPingReceivedAt = $null
+$connectionReceivedAt = [DateTime]::Now
+$lastPingReceivedAt = $null
+$timeout = [TimeSpan]::FromSeconds(10)
+$pingCount = 0
+
+while ($client.Connected)
+{
+    if (CheckForExitKey)
     {
-        Write-Host "Got ping!"
+        Write-Host "Q pressed - exiting"
+        break
     }
-    elseif ($readData)
+    if ($lastPingReceivedAt -and ([DateTime]::Now - $lastPingReceivedAt -gt $timeout))
     {
-        Write-Host "Got data: $data";
+        Write-Host "Did not receive any ping within timeout threshold, exiting"
+        break
+    }
+
+    $receivedData = ReadData($stream)
+
+    if ($receivedData -eq "ping")
+    {
+        $lastPingReceivedAt = [DateTime]::Now
+        if (-not $firstPingReceivedAt)
+        {
+            $firstPingReceivedAt = $lastPingReceivedAt
+            Write-Host "First ping received"
+        }
+        $pingCount++
+        $stream.Write($pongBytes, 0, $pongBytes.Length)
+    }
+    elseif ($receivedData)
+    {
+        Write-Host "Got unrecognized data : $receivedData";
     }
 }
+
+Write-Host "Connection : " $connectionReceivedAt
+Write-Host "First ping : " $firstPingReceivedAt
+Write-Host "Last ping : " $lastPingReceivedAt
+Write-HOst "Number of pings : " $pingCount
 
 ## Cleanup
 $stream.Close();
 $client.Close();
+$listener.Stop();
