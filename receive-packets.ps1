@@ -14,7 +14,7 @@ function ReadData([System.Net.Sockets.NetworkStream] $stream)
         }
         $sb.Append([text.Encoding]::UTF8.GetString($data, 0, $bytesRead)) | Out-Null
     } while ($stream.DataAvailable)
-    return $($sb.ToString().Trim(10))
+    return $($sb.ToString())
 }
 
 function CheckForExitKey()
@@ -51,7 +51,7 @@ while (-not $listener.Pending())
 $client = $listener.AcceptTcpClient()
 $stream = $client.GetStream()
 $stream.ReadTimeout = 1000
-$pongBytes = [text.Encoding]::UTF8.GetBytes("pong");
+$pongBytes = [text.Encoding]::UTF8.GetBytes("pong`n");
 Write-Host "Got connection from $($client.Client.RemoteEndPoint.ToString())"
 
 
@@ -61,6 +61,7 @@ $connectionReceivedAt = [DateTime]::Now
 $lastPingReceivedAt = $null
 $timeout = [TimeSpan]::FromSeconds(10)
 $pingCount = 0
+$runningTime = [timespan]::FromSeconds(0)
 
 while ($client.Connected)
 {
@@ -77,7 +78,7 @@ while ($client.Connected)
 
     $receivedData = ReadData($stream)
 
-    if ($receivedData -eq "ping")
+    if ($receivedData -eq "ping`n")
     {
         $lastPingReceivedAt = [DateTime]::Now
         if (-not $firstPingReceivedAt)
@@ -91,6 +92,12 @@ while ($client.Connected)
     elseif ($receivedData)
     {
         Write-Host "Got unrecognized data : $receivedData";
+    }
+    $currentRunningTime = [DateTime]::Now - $connectionReceivedAt
+    if (($currentRunningTime - $runningTime).TotalMinutes -gt 1)
+    {
+        $runningTime = $currentRunningTime
+        Write-Host "Current running time $currentRunningTime"
     }
 }
 
