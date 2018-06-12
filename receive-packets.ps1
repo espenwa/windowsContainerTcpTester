@@ -93,6 +93,7 @@ while ($client.Connected)
     {
         Write-Host "Got unrecognized data : $receivedData";
     }
+    
     $currentRunningTime = [DateTime]::Now - $connectionReceivedAt
     if (($currentRunningTime - $runningTime).TotalMinutes -gt 1)
     {
