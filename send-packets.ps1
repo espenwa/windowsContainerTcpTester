@@ -1,61 +1,25 @@
 param(# Parameter help description
     [Parameter(Mandatory = $true)]
-    [int] $ListeningPort
+    [int] $TargetHost
+    [Parameter(Mandatory = $true)]
+    [int] $TargetPort
 )
 # Loading utils
 . .\utils.ps1
 
-function ReadData([System.Net.Sockets.NetworkStream] $stream) {
-    [byte[]]$data = New-Object byte[] 1024
-    $sb = New-Object Text.StringBuilder
-    do {
-        try {
-            $bytesRead = $stream.Read($data, 0, $data.Length)        
-        }
-        catch [System.IO.IOException] {
-            return [String]::Empty
-        }
-        $sb.Append([text.Encoding]::UTF8.GetString($data, 0, $bytesRead)) | Out-Null
-    } while ($stream.DataAvailable)
-    return $($sb.ToString())
-}
-
-function CheckForExitKey() {
-    while ([Console]::KeyAvailable) {
-        $key = [Console]::ReadKey($True)
-        if ($key.Key -eq [System.ConsoleKey]::Q) {
-            return $true
-        }
-    }
-    return $false
-}
-
 Log Info "Quit by pressing 'q'"
 Log Info
 Log Info
-Log Info "Listening on $ListeningPort"
 $ErrorActionPreference = "Stop"
-$endpoint = new-object System.Net.IPEndPoint ([system.net.ipaddress]::any, $ListeningPort)
-$listener = new-object System.Net.Sockets.TcpListener $endpoint
-$listener.start()       
+$endpoint = new-object System.Net.IPEndPoint ([system.net.ipaddress]::any, $TargetPort)
+$client = New-Object System.Net.Sockets.TcpClient
+$client.Connect($TargetHost, $TargetPort)
 $ErrorActionPreference = "Continue"
 
-# Wait for pending connection
-while (-not $listener.Pending()) {
-    if (CheckForExitKey) {
-        Log Info "Q pressed - exiting"
-        $listener.Stop()
-        exit
-    }
-    Start-Sleep -Seconds 1
-}
-
-$client = $listener.AcceptTcpClient()
 $stream = $client.GetStream()
 $stream.ReadTimeout = 1000
-$pongBytes = [text.Encoding]::UTF8.GetBytes("pong`n");
-Log Info "Got connection from $($client.Client.RemoteEndPoint.ToString())"
-
+$pingBytes = [text.Encoding]::UTF8.GetBytes("ping`n");
+Log Info "Connected to $TargetHost on port $TargetPort"
 
 # Timing setup
 $firstPingReceivedAt = $null
@@ -70,10 +34,10 @@ while ($client.Connected) {
         Log Info "Q pressed - exiting"
         break
     }
-    if ($lastPingReceivedAt -and ([DateTime]::Now - $lastPingReceivedAt -gt $timeout)) {
-        Log Warning "Did not receive any ping within timeout threshold, exiting"
-        break
-    }
+    # if ($lastPingReceivedAt -and ([DateTime]::Now - $lastPingReceivedAt -gt $timeout)) {
+    #     Log Warning "Did not receive any ping within timeout threshold, exiting"
+    #     break
+    # }
 
     $receivedData = ReadData($stream)
 
