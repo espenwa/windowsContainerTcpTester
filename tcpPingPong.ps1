@@ -17,10 +17,13 @@ $config = @{
     sendFirst    = $False;
     mode         = $Mode;
     sendPause    = [TimeSpan]::FromSeconds(5);
+    timeout      = [TimeSpan]::FromSeconds(30);
 }
 
 Log Info "Quit by pressing 'q'"
+Log Info "Usage: tcpPingPong -Port <portNumber> -Mode [Listen|Send] -TargetHost <targetHost>"
 Log Info
+Log Info "TargetHost is only needed when in 'Send'-mode'"
 Log Info
 
 $client = createClient($config)
@@ -32,7 +35,6 @@ $statistics = @{
     firstPingReceivedAt  = $null;
     connectionReceivedAt = [DateTime]::Now;
     lastPingReceivedAt   = $null;
-    timeout              = [TimeSpan]::FromSeconds(20);
     pingCount            = 0;
     runningTime          = [timespan]::FromSeconds(0);
 }
@@ -40,6 +42,7 @@ $statistics = @{
 if ($config.sendFirst)
 {
     $stream.Write($config.bytesToSend, 0, $config.bytesToSend.Length)
+    Log Verbose "Sendt first data"
 }
 
 while ($True) {
@@ -47,8 +50,8 @@ while ($True) {
         Log Info "Q pressed - exiting"
         break
     }
-    if ($statistics.lastPingReceivedAt -and ([DateTime]::Now - $statistics.lastPingReceivedAt -gt $statistics.timeout)) {
-        Log Warning "Did not receive exptected data within timeout threshold, exiting"
+    if ($statistics.lastPingReceivedAt -and ([DateTime]::Now - $statistics.lastPingReceivedAt -gt $config.timeout)) {
+        Log Warning "Did not receive expected data within timeout threshold, exiting"
         break
     }
 
@@ -56,15 +59,16 @@ while ($True) {
 
     if ($receivedData -eq $config.stringToReceive) {
         $statistics.lastPingReceivedAt = [DateTime]::Now
+        Log Verbose "Got expected data"
+
         if (-not $statistics.firstPingReceivedAt) {
             $statistics.firstPingReceivedAt = $statistics.lastPingReceivedAt
             Log Info "First data received"
         }
-        else {
-            Log Verbose "Got data"
-        }
+
         $statistics.pingCount++
         $stream.Write($config.bytesToSend, 0, $config.bytesToSend.Length)
+        Log Verbose "Sendt data"
     }
     elseif ($receivedData) {
         Log Warning "Got unrecognized data : $receivedData";
