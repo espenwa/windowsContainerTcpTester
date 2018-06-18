@@ -17,7 +17,7 @@ param(
     [ValidateSet("Send", "Listen")]
     [string]$Mode,
     [Parameter()]
-    [ing]$PingDelay = 5
+    [int]$PingDelay = 5
 )
 # Loading utils
 . .\library.ps1
