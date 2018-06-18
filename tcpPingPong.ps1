@@ -1,10 +1,23 @@
+<#
+.PARAMETER Port
+Port to listen to, or to connect to (when Mode=Send)
+.PARAMETER TargetHost
+Hostname/IP to connect to when in Mode=Send
+.PARAMETER Mode
+Listen or Send
+.PARAMETER PingDelay
+Time to delay between pings. In seconds.
+#>
 param(
-    [Parameter(Mandatory = $true)]
+    [Parameter(Mandatory)]
     [int] $Port,
+    [Parameter()]
     [string] $TargetHost,
-    [Parameter(Mandatory = $true)]
+    [Parameter(Mandatory)]
     [ValidateSet("Send", "Listen")]
-    [string]$Mode
+    [string]$Mode,
+    [Parameter()]
+    [ing]$PingDelay = 5
 )
 # Loading utils
 . .\library.ps1
@@ -16,7 +29,7 @@ $config = @{
     dataToExpect = "";
     sendFirst    = $False;
     mode         = $Mode;
-    sendPause    = [TimeSpan]::FromSeconds(5);
+    pingDelay    = [TimeSpan]::FromSeconds($PingDelay);
     timeout      = [TimeSpan]::FromSeconds(30);
 }
 
@@ -81,7 +94,7 @@ while ($True) {
     }
     if ($config.sendFirst)
     {
-        [System.Threading.Thread]::Sleep($config.sendPause)
+        [System.Threading.Thread]::Sleep($config.pingDelay)
     }
 }
 
