@@ -77,7 +77,7 @@ while ($True) {
     $statistics.currentRunningTime = [DateTime]::Now - $statistics.connectionReceivedAt
     if (($statistics.currentRunningTime - $statistics.runningTime).TotalMinutes -gt 1) {
         $statistics.runningTime = $statistics.currentRunningTime
-        Log Info "Current running time $($statistics.currentRunningTime)"
+        Log Info "Current running time $($statistics.currentRunningTime) - $($statistics.pingCount) pings"
     }
     if ($config.sendFirst)
     {
