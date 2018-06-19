@@ -52,8 +52,7 @@ $statistics = @{
     runningTime          = [timespan]::FromSeconds(0);
 }
 
-if ($config.sendFirst)
-{
+if ($config.sendFirst) {
     $stream.Write($config.bytesToSend, 0, $config.bytesToSend.Length)
     Log Verbose "Sendt first data"
 }
@@ -80,8 +79,10 @@ while ($True) {
         }
 
         $statistics.pingCount++
-        $stream.Write($config.bytesToSend, 0, $config.bytesToSend.Length)
-        Log Verbose "Sendt data"
+        if (-not $config.sendFirst) {
+            $stream.Write($config.bytesToSend, 0, $config.bytesToSend.Length)
+            Log Verbose "Sendt reply"
+        }
     }
     elseif ($receivedData) {
         Log Warning "Got unrecognized data : $receivedData";
@@ -92,9 +93,10 @@ while ($True) {
         $statistics.runningTime = $statistics.currentRunningTime
         Log Info "Current running time $($statistics.currentRunningTime) - $($statistics.pingCount) pings"
     }
-    if ($config.sendFirst)
-    {
+    if ($config.sendFirst) {
         [System.Threading.Thread]::Sleep($config.pingDelay)
+        $stream.Write($config.bytesToSend, 0, $config.bytesToSend.Length)
+        Log Verbose "Sendt data"
     }
 }
 
